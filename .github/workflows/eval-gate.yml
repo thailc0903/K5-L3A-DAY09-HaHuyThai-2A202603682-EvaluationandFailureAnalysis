@@ -23,10 +23,11 @@ jobs:
       EVAL_SPEC: config/metric_spec.yaml
       # Committed by the team after M4 (re-run on main, never hand-edited).
       EVAL_BASELINE: reports/baseline_v1.json
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
       # setup-uv publishes only full tags (no @v10); pin the SHA.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with: {python-version: "3.13", activate-environment: true, enable-cache: true, cache-dependency-glob: "src/requirements*.txt"}
@@ -34,11 +35,13 @@ jobs:
       - run: python -m lab9.smoke
       - run: python -m pytest -q -m student -o addopts= -k "lab9 and not advanced"
       - run: python -m lab9.evalset --check
+      - name: Read the base branch metric spec for the ratchet
+        run: git show "$BASE_SHA:src/config/metric_spec.yaml" > "$RUNNER_TEMP/metric_spec_base.yaml"
       - name: Evaluate and gate the PR swarm
         shell: bash
         run: |
           python -m lab9.eval --shape swarm --spec "$EVAL_SPEC" --out reports/eval_pr.json
-          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
+          python -m lab9.gate --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC" --base-spec "$RUNNER_TEMP/metric_spec_base.yaml"
       - name: Check the committed baseline and the M3 metric
         run: python -m lab9.ci_check --pr reports/eval_pr.json --baseline "$EVAL_BASELINE" --spec "$EVAL_SPEC"
       - name: Verify the gate accepts fixed
@@ -65,11 +68,13 @@ jobs:
     needs: eval-gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env: {PYTHONUTF8: "1"}
+    env:
+      PYTHONUTF8: "1"
+      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
     defaults: {run: {working-directory: src}}
     steps:
       - uses: actions/checkout@v7
-        with: {persist-credentials: false}
+        with: {persist-credentials: false, fetch-depth: 0}
       - id: has
         run: "test -f reports/baseline_v2.json && echo v2=1 >> \"$GITHUB_OUTPUT\" || echo skip, no baseline_v2"
       - if: steps.has.outputs.v2
@@ -82,4 +87,11 @@ jobs:
       - if: steps.has.outputs.v2
         run: python -m lab9.evalset --v2
       - if: steps.has.outputs.v2
-        run: python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json
+        run: |
+          git show "$BASE_SHA:src/config/metric_spec_v2.yaml" > "$RUNNER_TEMP/metric_spec_base_v2.yaml"
+          python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json --base-spec "$RUNNER_TEMP/metric_spec_base_v2.yaml"
+      - if: steps.has.outputs.v2
+        name: Compare the three independent Inspect AI graders
+        run: |
+          uv pip install -r requirements-lab9-bonus.txt
+          python -m lab9.inspect_port --out reports/inspect_comparison.json

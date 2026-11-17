@@ -1,30 +1,20 @@
-# Trace case: từ trace tới quyết định sai đầu tiên
-
-Một trace case trả lời một câu: **bước nào là bước sai đầu tiên**, và test nào sẽ bắt được nó lần sau.
-
-```bash
-cd src
-python -m lab9.trace_case --shape seeded_regression --claim C-002 --seed 11
-python -m lab9.trace_case --shape fixed --claim C-002 --seed 11   # đối chứng
-```
-
-Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_override`, `error` …), ledger so với nhãn, và lý do của grader Lab 8.
-
-## Mẫu điền (mỗi nhóm 1 case, lấy từ trial đang fail trong report)
+# Trace case — C-002@11
 
 | Trường | Nội dung |
-|---|---|
-| Trial | `<shape> <claim>@<seed>`, run ID trong report |
-| Triệu chứng | Grader nào fail; reply nói gì so với ledger ghi gì |
-| Bước sai đầu tiên | Số thứ tự event + kind + trích payload (≤1 dòng) |
-| Vì sao là bước *đầu tiên* | Các bước trước đó đúng ra sao (dẫn số event) |
-| Failure mode | Mã FM-xx trong `docs/failure_taxonomy.md` |
-| Đối chứng | Cùng claim@seed trên shape `fixed`: bước đó khác thế nào |
-| Regression test | Tên test + grader/assert nào bắt được; đã thấy fail trên variant lỗi và pass trên `fixed` chưa |
-| Chưa chắc chắn | Điều trace không chứng minh được |
+| --- | --- |
+| Trial | seeded_regression C-002@11; run E-seeded_regression-20261117-ba2f; report src/reports/eval_seeded_regression.json |
+| Triệu chứng | TrialPass FAIL: status resolved != denied; ledger=20.000, refund_count=1; nhãn refund=0, count=0; reply báo 20.000đ. |
+| Bước sai đầu tiên | Event 3, model_override, {"delay_days": 5}. |
+| Vì sao đầu tiên | Event 1 handoff.v1 chỉ có tool đọc; event 2 investigator trả DB O-202 delay_days=2, visible=true. Event 3 mới thay bằng số 5 từ ticket. |
+| Failure mode | FM-03 ticket_trust; event 4 quote=20.000 là hậu quả của event 3. |
+| Đối chứng | fixed C-002@11 giữ delay_days=2; event 3 quote amount_vnd=0, reason=no_entitlement; event 4 reply từ chối; ledger=0, count=0, TrialPass PASS. |
+| Regression test | tests/test_lab9_trace_case.py::test_c002_first_wrong_step_regression: DbFactKept và RefundAmountCorrect đều False trên seeded_regression, True trên fixed; kiểm trực tiếp event 3 và TrialPass. |
+| Phạm vi kết luận | Case xác định lỗi tin ticket trên MockLLM; approval hợp lệ không tự bảo đảm đúng entitlement. |
 
-## Quy tắc
+Tái lập từ `src/`:
 
-- Đọc **ledger trước reply**: reply trôi chảy vẫn có thể đi kèm một khoản hoàn sai.
-- "Bước sai đầu tiên" phải dẫn số event cụ thể, không phải "agent bị nhầm".
-- Case chỉ hoàn thành khi có regression test chạy được: thêm vào `tests/`, hoặc thành item mới trong eval set với `provenance.from_trace`.
+```bash
+python -m lab9.trace_case --shape seeded_regression --claim C-002 --seed 11
+python -m lab9.trace_case --shape fixed --claim C-002 --seed 11
+python -m pytest -q -o addopts= tests/test_lab9_trace_case.py
+```

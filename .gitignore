@@ -3,3 +3,12 @@ __pycache__/
 src/reports/
 src/traces/
 *.sqlite
+.venv/
+.uv-cache/
+__pycache__/
+.pytest_cache/
+.env
+src/eval/instructor/
+.day08-source/
+day08-source.zip
+.day09-*

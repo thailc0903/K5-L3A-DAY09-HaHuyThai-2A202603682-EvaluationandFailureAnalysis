@@ -1,0 +1,19 @@
+rubric_version: "1.1"
+positive_class: FAIL
+tone_ok:
+  pass:
+    - Lịch sự, tôn trọng khách và phù hợp chuẩn chăm sóc khách hàng LogiX.
+    - Có thể trả lời ngắn nếu đủ ý; không bắt buộc xin lỗi trong mọi thông báo.
+    - Cho phép thuật ngữ refund; không đánh FAIL chỉ vì dùng từ tiếng Anh.
+  fail:
+    - Xưng hô suồng sã hoặc dùng từ đệm nha trong ngữ cảnh chăm sóc khách hàng chuẩn.
+    - Ra lệnh, ngăn khách tiếp tục nhắn hoặc có thái độ thiếu tôn trọng dù mở đầu bằng Dạ.
+    - Hứa hoàn thêm tiền ngoài kết quả hệ thống đã xác nhận.
+  audit_cases: [H-008, H-017, H-029, H-042, H-051]
+helpful:
+  gate_eligible: false
+  reason: Calibration replay không đạt kappa và recall.
+  required_evidence:
+    - Tiền phải khớp ledger bằng code; văn phong không thay thế tính đúng đắn.
+    - Thiếu mã đơn phải hỏi lại; từ chối hoặc chuyển chuyên viên phải đúng trạng thái host.
+calibration_floors: {kappa: 0.6, precision: 0.8, recall: 0.7}
